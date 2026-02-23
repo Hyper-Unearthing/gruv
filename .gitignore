@@ -1,5 +1,6 @@
-sessions
+/sessions
 .bundle
 bundle
 /*.tar.gz
 providers.json
+.ralph

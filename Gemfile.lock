@@ -29,6 +29,7 @@ GEM
       tsort
     reline (0.6.3)
       io-console (~> 0.5)
+    singleton (0.2.0)
     stringio (3.2.0)
     tsort (0.2.0)
 
@@ -40,6 +41,7 @@ DEPENDENCIES
   base64
   debug
   llm_gateway!
+  singleton
 
 BUNDLED WITH
    2.6.7

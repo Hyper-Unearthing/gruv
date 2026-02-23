@@ -1,21 +1,29 @@
 require 'json'
 
 class Agent
-  def initialize(prompt_class, model, client)
+  attr_reader :session_manager, :model
+
+  def initialize(prompt_class, model, client, session_manager)
     @prompt_class = prompt_class
     @model = model
     @client = client
-    @transcript = []
+    @session_manager = session_manager
+    session_manager.model = model
   end
 
-  attr_reader :transcript, :model
+  def transcript
+    @session_manager.transcript
+  end
 
   def run(user_input, &block)
-    @transcript << { role: 'user', content: [{ type: 'text', text: user_input }] }
+    start_index = @session_manager.transcript.length
+    @session_manager.push({ role: 'user', content: [{ type: 'text', text: user_input }] })
+
     begin
       send_and_process(&block)
       yield({ type: :done }) if block_given?
     rescue StandardError => e
+      @session_manager.truncate(start_index)
       yield({ type: :error, message: e.message }) if block_given?
       raise e
     end
@@ -24,7 +32,7 @@ class Agent
   private
 
   def send_and_process(&block)
-    prompt = @prompt_class.new(@model, @transcript, @client)
+    prompt = @prompt_class.new(@model, @session_manager.transcript, @client)
     result = prompt.post do |event|
       case event[:type]
       when :text_delta, :thinking_delta
@@ -34,8 +42,7 @@ class Agent
 
     response = result[:choices][0][:content]
     usage = result[:usage]
-
-    @transcript << { role: 'assistant', content: response, usage: usage }
+    @session_manager.push({ role: 'assistant', content: response, usage: usage })
 
     # Collect all tool uses
     tool_uses = response.select { |message| message[:type] == 'tool_use' }
@@ -54,8 +61,7 @@ class Agent
         yield(tool_result) if block_given?
         tool_result
       end
-
-      @transcript << { role: 'user', content: tool_results }
+      @session_manager.push({ role: 'user', content: tool_results })
       send_and_process(&block)
     end
 

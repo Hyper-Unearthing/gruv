@@ -4,12 +4,18 @@ require 'optparse'
 require 'securerandom'
 require 'json'
 require 'llm_gateway'
+require 'singleton'
 require_relative 'agent'
 require_relative 'prompt'
+require_relative 'events'
 require_relative 'lib/openai_oauth'
+require_relative 'format_stream'
+require_relative 'modes/interactive'
+require_relative 'lib/sessions/file_session_manager'
 
 # Enable immediate output flushing for real-time streaming
 $stdout.sync = true
+
 
 # Simple runner that takes auth and message arguments
 class AgentRunner
@@ -19,7 +25,8 @@ class AgentRunner
     @options = {
       model: nil,
       provider: nil,
-      message: nil
+      message: nil,
+      session_file: nil
     }
   end
 
@@ -39,6 +46,10 @@ class AgentRunner
         @options[:model] = model
       end
 
+      opts.on('-s FILE', '--session FILE', 'Load an existing session file') do |file|
+        @options[:session_file] = file
+      end
+
       opts.on('-h', '--help', 'Prints this help') do
         puts opts
         exit
@@ -47,6 +58,9 @@ class AgentRunner
   end
 
   def run
+    formatter = Formatter.new
+    Events.instance.attach(formatter)
+
     parse_args
 
     unless File.exist?(PROVIDERS_FILE)
@@ -68,90 +82,30 @@ class AgentRunner
     config['model_key'] = @options[:model] if @options[:model]
     model = config['model_key']
 
+    session_manager = begin
+      if @options[:session_file]
+        FileSessionManager.load_session(@options[:session_file])
+      else
+        FileSessionManager.new
+      end
+    rescue StandardError => e
+      puts "Failed to load session '#{@options[:session_file]}': #{e.message}"
+      exit 1
+    end
+
     client = LlmGateway.build_provider(config)
-    @agent = Agent.new(Prompt, model, client)
+    @agent = Agent.new(Prompt, model, client, session_manager)
 
     if @options[:message]
       # Single message mode
       @agent.run(@options[:message]) do |message|
-        puts message
+        Events.instance.notify('llm.message', message)
       end
-      write_transcript
     else
-      # Interactive mode
-      run_interactive
+      runner = InteractiveRunner.new(@agent)
+      runner.run
     end
   end
-
-  def transcript_path
-    unless @transcript_file
-      timestamp = Time.now.strftime('%Y%m%d_%H%M%S')
-      session_id = SecureRandom.uuid
-      dir = File.join(File.dirname(__FILE__), 'sessions')
-      Dir.mkdir(dir) unless Dir.exist?(dir)
-      @transcript_file = File.join(dir, "#{timestamp}_#{session_id}.json")
-    end
-    @transcript_file
-  end
-
-  def write_transcript
-    transcript_data = {
-      model: @agent.model,
-      messages: @agent.transcript
-    }
-    File.write(transcript_path, JSON.pretty_generate(transcript_data))
-  end
-
-  def run_interactive
-    rl = (require 'readline' rescue false)
-
-    # Point Readline at /dev/tty so bracketed paste works even when stdout is piped
-    if rl
-      tty_in  = File.open('/dev/tty', 'r')
-      tty_out = File.open('/dev/tty', 'w')
-      Readline.input  = tty_in
-      Readline.output = tty_out
-    end
-
-    puts "Interactive mode (type 'exit' or 'quit' to end, Ctrl+D to send EOF)"
-    puts '---'
-
-    loop do
-      $stdout.flush
-
-      input = if rl
-        Readline.readline('> ', true)
-      else
-        print '> '
-        t = File.open('/dev/tty', 'r')
-        line = t.gets
-        t.close
-        line&.chomp
-      end
-
-      # Handle EOF (Ctrl+D) or exit commands
-      break if input.nil? || input.strip.match?(/^(exit|quit)$/i)
-
-      message = input.strip
-      next if message.empty?
-
-      @agent.run(message) do |output|
-        puts output
-      end
-      write_transcript
-
-      # Print newline after agent output completes
-      puts
-    end
-
-    puts 'Goodbye!'
-  ensure
-    if rl
-      tty_in&.close
-      tty_out&.close
-    end
-  end
-
 
 end
 
