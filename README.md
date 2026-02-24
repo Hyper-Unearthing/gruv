@@ -1,41 +1,39 @@
 # Purpose 
 Just an exploration of building my own agent
 
-
 # Running
 
-## Setup
-
-Authenticate with a provider before first use. This runs an OAuth flow and saves credentials to `providers.json`:
-
-```bash
-bundle exec ruby setup_provider.rb anthropic
-bundle exec ruby setup_provider.rb openai
 ```
-
-You can set up multiple providers — they'll all be stored in `providers.json`.
-
-## Development Mode
-
-```bash
 git clone git@github.com:Hyper-Unearthing/rubister.git
 cd rubister
+```
 
-# Uses the first provider in providers.json
-bundle exec ruby ./run_agent.rb -m "whats this app" | ./format_output.rb
+Using OpenAI plan
+```bash
+bundle exec ruby setup_provider.rb openai
+bundle exec ruby ./run_agent.rb -p openai_oauth_responses
+```
+Using Anthropic plan
+```bash
+bundle exec ruby setup_provider.rb anthropic
+bundle exec ruby ./run_agent.rb -p anthropic_oauth_messages
+```
 
-# Pick a specific provider
-bundle exec ruby ./run_agent.rb -p anthropic_oauth_messages -m "whats this app" | ./format_output.rb
-bundle exec ruby ./run_agent.rb -p openai_oauth_responses -m "whats this app" | ./format_output.rb
+You can set up multiple providers — they'll all be stored in `providers.json`. not sure which will be called by default if you do, but you can always use -p to specify which one
 
-# Override the model
-bundle exec ruby ./run_agent.rb --model "claude_code/claude-sonnet-4-5" -m "whats this app" | ./format_output.rb
+```bash
+  # Single message mode
+  bundle exec ruby ./run_agent.rb -m "whats this app" 
+```
 
-# Interactive mode
-bundle exec ruby ./run_agent.rb | ./format_output.rb
+```bash
+  # Single message mode
+  bundle exec ruby ./run_agent.rb -m "whats this app" 
+```
 
-# No formatting
-bundle exec ruby ./run_agent.rb -m "whats this app"
+```bash
+  # resume, you can resume in -m or interactive mode
+  bundle exec ruby ./run_agent.rb -s sessions/20260224_164714_1846b412-9260-4e18-aa96-c1b67eb93581.jsonl
 ```
 
 ## Building a Standalone Bundle
