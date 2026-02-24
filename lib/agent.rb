@@ -2,7 +2,7 @@ require 'json'
 require_relative 'eventable'
 
 class Agent
-  include Publishable
+  include Eventable
   attr_reader :model, :client
   attr_accessor :transcript
 

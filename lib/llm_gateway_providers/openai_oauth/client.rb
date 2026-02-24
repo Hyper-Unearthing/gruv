@@ -64,14 +64,6 @@ module OpenAiOAuth
       }
       body[:tools] = tools if tools
 
-      emit_debug(
-        model: model_key,
-        input_count: Array(messages).length,
-        first_input: Array(messages).first,
-        last_input: Array(messages).last,
-        tool_count: Array(tools).length
-      )
-
       # Codex OAuth backend currently requires streaming mode.
       body[:stream] = true
 
@@ -126,14 +118,6 @@ module OpenAiOAuth
       }
       headers["chatgpt-account-id"] = @account_id if @account_id
       headers
-    end
-
-    def emit_debug(payload)
-      return unless defined?(::Events)
-
-      ::Events.instance.notify("debug", payload)
-    rescue StandardError
-      nil
     end
   end
 end

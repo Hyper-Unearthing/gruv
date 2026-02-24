@@ -7,9 +7,10 @@ require 'llm_gateway'
 require 'singleton'
 require_relative 'lib/agent'
 require_relative 'lib/prompt'
-require_relative 'lib/events'
+require_relative 'lib/logging'
 require_relative 'lib/openai_oauth'
 require_relative 'lib/format_stream'
+require_relative 'lib/log_file_writer'
 require_relative 'modes/interactive'
 require_relative 'lib/sessions/file_session_manager'
 require_relative 'lib/agent_session'
@@ -59,10 +60,11 @@ class AgentRunner
 
   def run
     formatter = Formatter.new
-    Events.instance.attach(formatter)
+    log_file_writer = LogFileWriter.new
+    Logging.instance.attach(log_file_writer)
 
     parse_args
-
+    Logging.instance.notify('setup.start',{})
     unless File.exist?(PROVIDERS_FILE)
       puts "No providers.json found. Run 'ruby setup_provider.rb <provider>' first."
       exit 1
@@ -105,10 +107,10 @@ class AgentRunner
       puts "Available configured clients: #{LlmGateway.configured_clients.keys.join(', ')}"
       exit 1
     end
-    puts client.chat("hey")
     @agent = Agent.new(Prompt, model, client)
     @agent.subscribe(formatter)
     agent_session = AgentSession.new @agent, session_manager
+    Logging.instance.notify('setup.complete', {})
     if @options[:message]
       agent_session.run(@options[:message])
     else

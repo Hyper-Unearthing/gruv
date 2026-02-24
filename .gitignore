@@ -4,3 +4,4 @@ bundle
 /*.tar.gz
 providers.json
 .ralph
+/instance

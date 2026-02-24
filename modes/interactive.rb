@@ -53,6 +53,7 @@ class InteractiveRunner
         next
       end
 
+      Logging.instance.notify('interactive.message', { input: message })
       @agent_session.run(message)
     end
 
