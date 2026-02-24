@@ -21,6 +21,21 @@ bundle exec ruby ./run_agent.rb -p anthropic_oauth_messages
 
 You can set up multiple providers — they'll all be stored in `instance/providers.json`. not sure which will be called by default if you do, but you can always use -p to specify which one
 
+## Logging
+
+Gruv uses an event-based logging system (`lib/logging.rb`) instead of direct `puts` for operational messages.
+
+- Runtime and operational logs are emitted via `Logging.instance.notify(name, payload)`.
+- Use scoped names (for example: `daemon.start`, `daemon.message.complete`, `setup.error.provider_not_found`) and include details in the payload hash.
+- Logs are written to `instance/logs.jsonl` by `LogFileWriter`.
+
+
+Each JSONL log entry includes:
+- `name` (event name, e.g. `log`, `setup.start`, `daemon.message.complete`)
+- `payload` (event data)
+- `timestamp`
+- `source_location` (`filepath`, `lineno`, `label`) when available
+
 ```bash
   # Single message mode
   bundle exec ruby ./run_agent.rb -m "whats this app" 
