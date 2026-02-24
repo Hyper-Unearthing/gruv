@@ -127,12 +127,6 @@ class FileSessionManager
     [summary_message, *kept_messages]
   end
 
-  def emit_transcript
-    @events.each do |message|
-      Events.instance.notify('llm.replay_message', message)
-    end
-  end
-
   private
 
   def message_entries
