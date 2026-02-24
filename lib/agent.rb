@@ -3,7 +3,7 @@ require_relative 'eventable'
 
 class Agent
   include Publishable
-  attr_reader :model
+  attr_reader :model, :client
   attr_accessor :transcript
 
   def initialize(prompt_class, model, client)

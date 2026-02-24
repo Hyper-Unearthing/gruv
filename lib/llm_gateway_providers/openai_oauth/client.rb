@@ -3,6 +3,7 @@
 require "llm_gateway"
 require_relative "oauth_flow"
 require_relative "token_manager"
+require_relative "stream_output_mapper"
 
 module OpenAiOAuth
   # OpenAI OAuth client that uses the OpenAI Chat Completions API
@@ -71,11 +72,19 @@ module OpenAiOAuth
         tool_count: Array(tools).length
       )
 
+      # Codex OAuth backend currently requires streaming mode.
+      body[:stream] = true
+
       if block_given?
-        body[:stream] = true
         post_stream_with_retry("responses", body, &block)
       else
-        post_with_retry("responses", body)
+        stream_mapper = StreamOutputMapper.new
+
+        post_stream_with_retry("responses", body) do |raw_sse|
+          stream_mapper.map_event(raw_sse)
+        end
+
+        stream_mapper.to_message
       end
     end
 
