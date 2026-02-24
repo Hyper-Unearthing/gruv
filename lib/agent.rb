@@ -1,6 +1,8 @@
 require 'json'
+require_relative 'eventable'
 
 class Agent
+  include Publishable
   attr_reader :session_manager, :model
 
   def initialize(prompt_class, model, client, session_manager)
@@ -15,28 +17,28 @@ class Agent
     @session_manager.transcript
   end
 
-  def run(user_input, &block)
+  def run(user_input)
     start_index = @session_manager.transcript.length
     @session_manager.push({ role: 'user', content: [{ type: 'text', text: user_input }] })
 
     begin
-      send_and_process(&block)
-      yield({ type: :done }) if block_given?
+      response = send_and_process()
+      publish(:done, response)
     rescue StandardError => e
       @session_manager.truncate(start_index)
-      yield({ type: :error, message: e.message }) if block_given?
+      publish(:error, e)
       raise e
     end
   end
 
   private
 
-  def send_and_process(&block)
+  def send_and_process
     prompt = @prompt_class.new(@model, @session_manager.transcript, @client)
     result = prompt.post do |event|
       case event[:type]
       when :text_delta, :thinking_delta
-        yield(event) if block_given?
+        publish(:message_delta, event)
       end
     end
 
@@ -49,7 +51,7 @@ class Agent
 
     if tool_uses.any?
       tool_results = tool_uses.map do |message|
-        yield({ type: :tool_use, id: message[:id], name: message[:name], input: message[:input] }) if block_given?
+        publish(:tool_use, { type: :tool_use, id: message[:id], name: message[:name], input: message[:input] })
         result = handle_tool_use(message)
 
         tool_result = {
@@ -58,11 +60,11 @@ class Agent
           content: result
         }
 
-        yield(tool_result) if block_given?
+        publish(:tool_result, tool_result)
         tool_result
       end
       @session_manager.push({ role: 'user', content: tool_results })
-      send_and_process(&block)
+      send_and_process
     end
 
     response

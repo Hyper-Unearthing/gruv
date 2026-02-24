@@ -95,12 +95,11 @@ class AgentRunner
 
     client = LlmGateway.build_provider(config)
     @agent = Agent.new(Prompt, model, client, session_manager)
+    @agent.subscribe(formatter)
 
     if @options[:message]
       # Single message mode
-      @agent.run(@options[:message]) do |message|
-        Events.instance.notify('llm.message', message)
-      end
+      @agent.run(@options[:message])
     else
       runner = InteractiveRunner.new(@agent)
       runner.run

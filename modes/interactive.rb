@@ -38,9 +38,7 @@ class InteractiveRunner
       message = input.strip
       next if message.empty?
 
-      @agent.run(message) do |output|
-        Events.instance.notify('llm.message', output)
-      end
+      @agent.run(message)
     end
 
     puts 'Goodbye!'
