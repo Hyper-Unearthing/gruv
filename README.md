@@ -19,7 +19,7 @@ bundle exec ruby setup_provider.rb anthropic
 bundle exec ruby ./run_agent.rb -p anthropic_oauth_messages
 ```
 
-You can set up multiple providers — they'll all be stored in `providers.json`. not sure which will be called by default if you do, but you can always use -p to specify which one
+You can set up multiple providers — they'll all be stored in `instance/providers.json`. not sure which will be called by default if you do, but you can always use -p to specify which one
 
 ```bash
   # Single message mode

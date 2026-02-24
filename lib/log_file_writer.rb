@@ -1,6 +1,7 @@
 require 'json'
 require 'time'
 require 'fileutils'
+require_relative 'instance_file_scope'
 
 class LogFileWriter
   def initialize(file_path: nil)
@@ -17,6 +18,6 @@ class LogFileWriter
   private
 
   def default_file_path
-    File.expand_path('../instance/logs.jsonl', __dir__)
+    InstanceFileScope.path('logs.jsonl')
   end
 end

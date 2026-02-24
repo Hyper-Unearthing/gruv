@@ -1,6 +1,8 @@
 require 'json'
 require 'securerandom'
 require 'time'
+require 'fileutils'
+require_relative '../instance_file_scope'
 
 class FileSessionManager
   attr_reader :session_id, :session_start, :events
@@ -13,9 +15,8 @@ class FileSessionManager
   end
 
   def session_file
-    dir = File.expand_path('../../sessions', __dir__)
-    Dir.mkdir(dir) unless Dir.exist?(dir)
-    File.join(dir, "#{session_start}_#{session_id}.jsonl")
+    FileUtils.mkdir_p(session_dir)
+    File.join(session_dir, "#{session_start}_#{session_id}.jsonl")
   end
 
   def on_notify(event)
@@ -55,8 +56,10 @@ class FileSessionManager
     base_name = File.basename(file_name)
     session_path = if File.absolute_path(file_name) == file_name
                      file_name
+                   elsif File.exist?(file_name)
+                     File.expand_path(file_name)
                    else
-                     File.join(File.expand_path('../../sessions', __dir__), base_name)
+                     File.join(session_dir, base_name)
                    end
 
     @events = []
@@ -131,6 +134,10 @@ class FileSessionManager
 
   def message_entries
     @events.select { |event| event[:type].to_s == 'message' }
+  end
+
+  def session_dir
+    File.join(InstanceFileScope.instance_dir, 'sessions')
   end
 
   def fallback_summary(entries)
