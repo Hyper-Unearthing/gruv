@@ -14,6 +14,7 @@ class MessageMode
     log_file_writer = LogFileWriter.new(file_path: InstanceFileScope.path('message_logs.jsonl'))
     Logging.instance.attach(log_file_writer)
     @agent_session.agent.subscribe(@formatter)
+
     @agent_session.run(@message)
   end
 end

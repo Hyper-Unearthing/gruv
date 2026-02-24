@@ -1,4 +1,5 @@
 require_relative 'compaction_prompt'
+require_relative 'logging'
 
 class AgentSession
   attr_reader :agent, :session_manager
@@ -12,6 +13,7 @@ class AgentSession
   end
 
   def run(message)
+    Logging.instance.notify('agent_session.message', { input: message })
     @agent.run(message)
   end
 
