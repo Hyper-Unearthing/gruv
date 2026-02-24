@@ -11,6 +11,7 @@ require_relative 'lib/logging'
 require_relative 'lib/openai_oauth'
 require_relative 'lib/format_stream'
 require_relative 'lib/log_file_writer'
+require_relative 'lib/instance_file_scope'
 require_relative 'modes/interactive'
 require_relative 'lib/sessions/file_session_manager'
 require_relative 'lib/agent_session'
@@ -20,7 +21,7 @@ $stdout.sync = true
 
 # Simple runner that takes auth and message arguments
 class AgentRunner
-  PROVIDERS_FILE = File.join(__dir__, 'providers.json')
+  PROVIDERS_FILE = InstanceFileScope.path('providers.json')
 
   def initialize
     @options = {
@@ -66,7 +67,7 @@ class AgentRunner
     parse_args
     Logging.instance.notify('setup.start',{})
     unless File.exist?(PROVIDERS_FILE)
-      puts "No providers.json found. Run 'ruby setup_provider.rb <provider>' first."
+      puts "No providers.json found at #{PROVIDERS_FILE}. Run 'ruby setup_provider.rb <provider>' first."
       exit 1
     end
 

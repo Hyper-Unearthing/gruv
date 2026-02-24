@@ -4,8 +4,9 @@ require 'json'
 require 'fileutils'
 require 'llm_gateway'
 require_relative 'lib/openai_oauth'
+require_relative 'lib/instance_file_scope'
 
-PROVIDERS_FILE = File.join(__dir__, 'providers.json')
+PROVIDERS_FILE = InstanceFileScope.path('providers.json')
 
 SUPPORTED_PROVIDERS = {
   'anthropic' => {
@@ -75,4 +76,4 @@ config = SUPPORTED_PROVIDERS[provider]
 tokens = run_oauth_flow(provider)
 save_provider(config[:registry_key], config[:default_model], tokens)
 
-puts "Provider '#{config[:registry_key]}' saved to providers.json"
+puts "Provider '#{config[:registry_key]}' saved to #{PROVIDERS_FILE}"
