@@ -1,5 +1,6 @@
 require 'json'
 require 'securerandom'
+require 'time'
 
 class FileSessionManager
   attr_reader :session_id, :session_start, :events
@@ -19,12 +20,10 @@ class FileSessionManager
 
   def on_notify(event)
     return unless event.is_a?(Hash)
-
     return unless %i[user_message assistant_message].include?(event[:name])
 
     payload = event[:payload]
-    # "type":"message",,"timestamp":"2026-02-09T05:09:21.359Z","message"
-    push_entry({type: 'message', timestamp: Time.now, message:payload})
+    push_entry({ type: 'message', timestamp: Time.now.iso8601, message: payload })
   rescue StandardError
     nil
   end
@@ -36,13 +35,11 @@ class FileSessionManager
     append_message(new_entry)
   end
 
-
   def append_message(message)
     File.open(session_file, 'a') do |f|
       f.puts(JSON.generate(message))
     end
   end
-
 
   def self.load_session(file_name)
     base_name = File.basename(file_name)
