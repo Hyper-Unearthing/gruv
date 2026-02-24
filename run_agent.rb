@@ -102,7 +102,7 @@ class AgentRunner
       # Single message mode
       @agent.run(@options[:message])
     else
-      runner = InteractiveRunner.new(@agent)
+      runner = InteractiveRunner.new(@agent, formatter, session_manager)
       runner.run
     end
   end
