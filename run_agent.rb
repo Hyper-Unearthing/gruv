@@ -105,7 +105,6 @@ class AgentRunner
       puts "Available configured clients: #{LlmGateway.configured_clients.keys.join(', ')}"
       exit 1
     end
-    puts client.chat("hey")
     @agent = Agent.new(Prompt, model, client)
     @agent.subscribe(formatter)
     agent_session = AgentSession.new @agent, session_manager
