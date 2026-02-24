@@ -1,7 +1,7 @@
-require_relative 'tools/edit_tool'
-require_relative 'tools/read_tool'
-require_relative 'tools/bash_tool'
-require_relative 'tools/grep_tool'
+require_relative '../tools/edit_tool'
+require_relative '../tools/read_tool'
+require_relative '../tools/bash_tool'
+require_relative '../tools/grep_tool'
 
 class Prompt < LlmGateway::Prompt
   def initialize(model, transcript, client)
@@ -19,7 +19,7 @@ class Prompt < LlmGateway::Prompt
   end
 
   def system_prompt
-    content = File.read(File.join(__dir__, 'system_prompt.md'))
+    content = File.read(File.join(__dir__, '..', 'system_prompt.md'))
     [{ role: 'system', content: content, cache_control: { 'type': 'ephemeral' } }]
   end
 
