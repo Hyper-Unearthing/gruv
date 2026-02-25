@@ -194,7 +194,7 @@ module OpenAiOAuth
         state: state,
         id_token_add_organizations: "true",
         codex_cli_simplified_flow: "true",
-        originator: "rubister"
+        originator: "gruv"
       }
 
       "#{AUTHORIZE_URL}?#{URI.encode_www_form(params)}"
