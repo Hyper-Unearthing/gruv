@@ -1,7 +1,7 @@
 require_relative '../tools/edit_tool'
 require_relative '../tools/read_tool'
 require_relative '../tools/bash_tool'
-require_relative '../tools/grep_tool'
+require_relative '../tools/write_tool'
 
 class Prompt < LlmGateway::Prompt
   def initialize(model, transcript, client)
@@ -24,7 +24,7 @@ class Prompt < LlmGateway::Prompt
   end
 
   def self.tools
-    [EditTool, ReadTool, BashTool, GrepTool]
+    [EditTool, ReadTool, BashTool, WriteTool]
   end
 
   def tools

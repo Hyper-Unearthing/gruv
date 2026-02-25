@@ -1,61 +1,56 @@
+require_relative 'tool_utils'
+
 class EditTool < LlmGateway::Tool
-  name 'Edit'
-  description 'Modify existing files by replacing specific text strings'
+  name 'edit'
+  description 'Edit a file by replacing exact text. The oldText must match exactly (including whitespace). Use this for precise, surgical edits.'
   input_schema({
     type: 'object',
     properties: {
-      file_path: { type: 'string', description: 'Absolute path to file to modify' },
-      old_string: { type: 'string', description: 'Exact text to replace' },
-      new_string: { type: 'string', description: 'Replacement text' },
-      replace_all: { type: 'boolean', description: 'Replace all occurrences (default: false)' }
+      path: { type: 'string', description: 'Path to the file to edit (relative or absolute)' },
+      oldText: { type: 'string', description: 'Exact text to find and replace (must match exactly)' },
+      newText: { type: 'string', description: 'New text to replace the old text with' }
     },
-    required: [ 'file_path', 'old_string', 'new_string' ]
+    required: ['path', 'oldText', 'newText']
   })
 
   def execute(input)
-    file_path = input[:file_path]
-    old_string = input[:old_string]
-    new_string = input[:new_string]
-    replace_all = input[:replace_all] || false
+    path = input[:path] || input['path']
+    old_text = input[:oldText] || input['oldText']
+    new_text = input[:newText] || input['newText']
 
-    # Validate file exists
-    unless File.exist?(file_path)
-      return "Error: File not found at #{file_path}"
+    absolute_path = ToolUtils.resolve_to_cwd(path)
+
+    return "File not found: #{path}" unless File.exist?(absolute_path)
+    return "Cannot edit directory: #{path}" if File.directory?(absolute_path)
+    return "File is not writable: #{path}" unless File.writable?(absolute_path)
+
+    raw_content = File.binread(absolute_path)
+
+    bom = raw_content.start_with?("\xEF\xBB\xBF".b) ? "\xEF\xBB\xBF".b : ''.b
+    content_without_bom = bom.empty? ? raw_content : raw_content.byteslice(3..)
+    content_utf8 = content_without_bom.force_encoding('UTF-8')
+
+    original_ending = content_utf8.include?("\r\n") ? "\r\n" : "\n"
+    normalized_content = content_utf8.gsub("\r\n", "\n")
+    normalized_old = old_text.to_s.gsub("\r\n", "\n")
+    normalized_new = new_text.to_s.gsub("\r\n", "\n")
+
+    return "Could not find the exact text in #{path}. The old text must match exactly including all whitespace and newlines." unless normalized_content.include?(normalized_old)
+
+    occurrences = normalized_content.scan(Regexp.new(Regexp.escape(normalized_old))).length
+    if occurrences > 1
+      return "Found #{occurrences} occurrences of the text in #{path}. The text must be unique. Please provide more context to make it unique."
     end
 
-    # Read file content
-    begin
-      content = File.read(file_path)
-    rescue => e
-      return "Error reading file: #{e.message}"
-    end
+    new_content = normalized_content.sub(normalized_old, normalized_new)
+    return "No changes made to #{path}. The replacement produced identical content." if new_content == normalized_content
 
-    # Check if old_string exists in file
-    unless content.include?(old_string)
-      return "Error: Text '#{old_string}' not found in file"
-    end
+    restored = original_ending == "\r\n" ? new_content.gsub("\n", "\r\n") : new_content
+    final_bytes = bom + restored.encode('UTF-8')
 
-    # Perform replacement
-    if replace_all
-      updated_content = content.gsub(old_string, new_string)
-      occurrences = content.scan(old_string).length
-    else
-      # Replace only first occurrence
-      updated_content = content.sub(old_string, new_string)
-      occurrences = 1
-    end
-
-    # Check if replacement would result in same content
-    if content == updated_content
-      return "Error: old_string and new_string are identical, no changes made"
-    end
-
-    # Write updated content back to file
-    begin
-      File.write(file_path, updated_content)
-      "Successfully replaced #{occurrences} occurrence(s) in #{file_path}"
-    rescue => e
-      "Error writing file: #{e.message}"
-    end
+    File.binwrite(absolute_path, final_bytes)
+    "Successfully replaced text in #{path}."
+  rescue StandardError => e
+    "Error editing file: #{e.message}"
   end
 end
