@@ -20,18 +20,26 @@ class FileSessionManager
   end
 
   def on_notify(event)
-  payload = event[:payload]
-  name = event[:name]
+    payload = event[:payload]
+    name = event[:name]
 
-  case name
-  when :user_input, :message
-    push_entry({ type: 'message', message: payload })
-  end
+    case name
+    when :user_input, :message
+      push_entry(
+        type: 'message',
+        usage: message_usage(payload),
+        data: {
+          role: payload[:role],
+          content: payload[:content]
+        }
+      )
+    end
   end
 
   def push_entry(entry)
+    id = SecureRandom.uuid
     parent_id = events.length.positive? ? events.last[:id] : nil
-    new_entry = { id: SecureRandom.uuid, parent_id:, timestamp: Time.now.iso8601, **entry }
+    new_entry = { id: id, parent_id: parent_id, timestamp: Time.now.iso8601, **entry }
     @events << new_entry
     append_message(new_entry)
   end
@@ -75,7 +83,7 @@ class FileSessionManager
   end
 
   def current_transcript
-    message_entries.map { |event| event[:message] }
+    message_entries.map { |event| event[:data] }
   end
 
   def compaction(adapter, messages_to_keep: 2)
@@ -88,13 +96,16 @@ class FileSessionManager
 
     result = CompactionPrompt.new(adapter, entries_to_summarise).post
     text_parts = result[:choices]&.dig(0, :content).select { |part| part[:type] == 'text' }
-    sumamry = text_parts[0][:text]
-    raise 'Compaction Error' if sumamry.empty?
+    summary = text_parts[0][:text]
+    raise 'Compaction Error' if summary.empty?
 
     compaction_entry = {
       type: 'compaction',
-      summary: sumamry,
-      first_kept_entry_id: first_kept_entry[:id]
+      usage: result[:usage],
+      data: {
+        summary: summary,
+        first_kept_entry_id: first_kept_entry[:id]
+      }
     }
 
     push_entry(compaction_entry)
@@ -102,19 +113,19 @@ class FileSessionManager
   end
 
   def assemble_transcript
-    compaction_entry = @events.reverse.find { |event| event[:type].to_s == 'compaction' }
+    compaction_entry = @events.reverse.find { |event| event[:type] == 'compaction' }
     return current_transcript unless compaction_entry
 
-    first_kept_entry_id = compaction_entry[:first_kept_entry_id]
-    return current_transcript if first_kept_entry_id.to_s.empty?
+    first_kept_entry_id = compaction_entry[:data][:first_kept_entry_id]
+    return current_transcript unless first_kept_entry_id
 
-    first_kept_index = @events.index { |event| event[:id].to_s == first_kept_entry_id.to_s }
+    first_kept_index = @events.index { |event| event[:id] == first_kept_entry_id }
     return current_transcript unless first_kept_index
 
     kept_messages = @events[first_kept_index..].to_a.filter_map do |event|
-      next unless event[:type].to_s == 'message'
+      next unless event[:type] == 'message'
 
-      event[:message]
+      event[:data]
     end
 
     summary_message = {
@@ -122,7 +133,7 @@ class FileSessionManager
       content: [
         {
           type: 'text',
-          text: compaction_entry[:summary].to_s
+          text: compaction_entry[:data][:summary]
         }
       ]
     }
@@ -133,14 +144,15 @@ class FileSessionManager
   private
 
   def message_entries
-    @events.select { |event| event[:type].to_s == 'message' }
+    @events.select { |event| event[:type] == 'message' }
+  end
+
+  def message_usage(message)
+    message[:usage]
   end
 
   def session_dir
     File.join(InstanceFileScope.instance_dir, 'sessions')
   end
 
-  def fallback_summary(entries)
-    "Compacted #{entries.length} earlier messages."
-  end
 end
