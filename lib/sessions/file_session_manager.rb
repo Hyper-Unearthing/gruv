@@ -3,9 +3,11 @@ require 'securerandom'
 require 'time'
 require 'fileutils'
 require_relative 'base_session_manager'
+require_relative 'concerns/basic_compaction'
 require_relative '../instance_file_scope'
 
 class FileSessionManager < BaseSessionManager
+  include BasicCompaction
   def initialize(session_id: SecureRandom.uuid, session_start: Time.now.strftime('%Y%m%d_%H%M%S'))
     super(session_id: session_id, session_start: session_start, events: [])
   end
