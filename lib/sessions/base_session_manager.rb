@@ -90,7 +90,17 @@ class BaseSessionManager
       ]
     }
 
-    [summary_message, *messages]
+    [summary_message, *drop_leading_non_text_messages(messages)]
+  end
+
+  def drop_leading_non_text_messages(messages)
+    messages.drop_while { |message| !text_only_message?(message) }
+  end
+
+  def text_only_message?(message)
+    return false if message[:content].empty?
+
+    message[:content].all? { |part| ['text', 'input_text', 'output_text'].include?(part[:type]) }
   end
 
   def fetch_latest_transcript
