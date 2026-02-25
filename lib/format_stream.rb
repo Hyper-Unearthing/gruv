@@ -12,7 +12,7 @@ COLORS = {
 class Formatter
 
   def replay_message(event)
-    contents = Array(event.dig(:content))
+    contents = event.dig(:content)
     role = event.dig(:role)
 
     if role.to_s == 'user'
@@ -93,7 +93,7 @@ class Formatter
     when 'tool_use'
       puts
       puts "  #{COLORS[:cyan]}#{COLORS[:bold]}#{hash.dig(:name)}#{COLORS[:reset]}"
-      Array(hash.dig(:input)).each do |key, value|
+      hash.dig(:input).each do |key, value|
         puts "  #{COLORS[:dim]}#{key}: #{value}#{COLORS[:reset]}"
       end
       puts "  #{COLORS[:dim]}id: #{hash.dig(:id)}#{COLORS[:reset]}"

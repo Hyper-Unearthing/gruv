@@ -139,6 +139,8 @@ module OpenAiOAuth
     end
 
     def self.normalize_tool_result_output(output)
+      # i think tools return a variety of stuff so this is why
+      # we do the gaurd
       Array(output).map do |item|
         case item
         when String
