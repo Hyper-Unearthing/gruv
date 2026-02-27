@@ -13,8 +13,7 @@ require_relative 'lib/anthropic_oauth'
 require_relative 'lib/instance_file_scope'
 require_relative 'modes/interactive'
 require_relative 'modes/message'
-require_relative 'lib/sessions/file_session_manager'
-require_relative 'lib/agent_session'
+require_relative 'lib/runtime_config'
 require_relative 'modes/daemon'
 # Enable immediate output flushing for real-time streaming
 $stdout.sync = true
@@ -98,6 +97,7 @@ class AgentRunner
 
     LlmGateway.reset_configuration!
     LlmGateway.configure(configured_entries)
+
     client = LlmGateway.configured_clients[name.to_sym]
 
     unless client
