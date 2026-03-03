@@ -1,9 +1,11 @@
-require_relative '../tools/edit_tool'
-require_relative '../tools/read_tool'
-require_relative '../tools/bash_tool'
-require_relative '../tools/write_tool'
+require_relative '../tools'
 
 class Prompt < LlmGateway::Prompt
+  TOOL_CLASSES = ObjectSpace.each_object(Class)
+    .select { |klass| klass < LlmGateway::Tool }
+    .sort_by(&:name)
+    .freeze
+
   def initialize(model, transcript, client)
     super(model)
     @transcript = transcript
@@ -24,7 +26,7 @@ class Prompt < LlmGateway::Prompt
   end
 
   def self.tools
-    [EditTool, ReadTool, BashTool, WriteTool]
+    TOOL_CLASSES
   end
 
   def tools
