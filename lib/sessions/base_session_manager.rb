@@ -8,10 +8,17 @@ class BaseSessionManager
   attr_reader :session_id, :session_start, :events
   attr_accessor :model
 
-  def initialize(session_id:, session_start:, events: [])
-    @session_id = session_id
-    @session_start = session_start
-    @events = events
+  def initialize(events)
+    if(events)
+      session_event = events[0]
+      @session_id = session_event[:id]
+      @session_start = session_event[:timestamp]
+      @events = events
+    else
+      @session_id = SecureRandom.uuid
+      @session_start = Time.now.strftime('%Y%m%d_%H%M%S')
+      @events = [{ type: 'session', id: session_id, timestamp: session_start }]
+    end
   end
 
   def on_notify(event)

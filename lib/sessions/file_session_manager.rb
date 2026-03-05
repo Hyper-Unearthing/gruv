@@ -7,46 +7,51 @@ require_relative 'concerns/basic_compaction'
 require_relative '../instance_file_scope'
 
 class FileSessionManager < BaseSessionManager
+  attr_reader :session_path
+
   include BasicCompaction
-  def initialize(session_id: SecureRandom.uuid, session_start: Time.now.strftime('%Y%m%d_%H%M%S'))
-    super(session_id: session_id, session_start: session_start, events: [])
+
+  def initialize(file_name)
+    if file_name
+      @session_path = normalize_path(file_name)
+      if File.exist?(@session_path)
+        super(load_session(@session_path))
+      else
+        super(nil)
+        FileUtils.mkdir_p(File.dirname(@session_path))
+        File.open(@session_path, 'a') do |f|
+          f.puts(JSON.generate(@events.first))
+        end
+      end
+    else
+      super(nil)
+      FileUtils.mkdir_p(session_dir)
+      @session_path = File.join(session_dir, "#{session_start}_#{session_id}.jsonl")
+      File.open(@session_path, 'a') do |f|
+        f.puts(JSON.generate(@events.first))
+      end
+    end
   end
 
-  def session_file
-    FileUtils.mkdir_p(session_dir)
-    File.join(session_dir, "#{session_start}_#{session_id}.jsonl")
+  def normalize_path(file_name)
+    if File.dirname(file_name) == '.'
+      File.join(session_dir, file_name)
+    else
+      File.expand_path(file_name)
+    end
   end
 
-  def self.load_session(file_name)
-    base_name = File.basename(file_name)
-    match = base_name.match(/\A(\d{8}_\d{6})_(.+)\.jsonl\z/)
-    raise ArgumentError, "Invalid session filename: #{file_name}" unless match
-
-    manager = new(session_start: match[1], session_id: match[2])
-    manager.load_session(file_name)
-    manager
-  end
-
-  def load_session(file_name)
-    base_name = File.basename(file_name)
-    session_path = if File.absolute_path(file_name) == file_name
-                     file_name
-                   elsif File.exist?(file_name)
-                     File.expand_path(file_name)
-                   else
-                     File.join(session_dir, base_name)
-                   end
-
-    @events = []
+  def load_session(session_path)
+    events = []
     File.foreach(session_path).with_index(1) do |line, line_number|
       next if line.strip.empty?
 
-      @events << JSON.parse(line, symbolize_names: true)
+      events << JSON.parse(line, symbolize_names: true)
     rescue JSON::ParserError => e
       raise ArgumentError, "Invalid JSONL in #{session_path} at line #{line_number}: #{e.message}"
     end
 
-    self
+    events
   end
 
   private
@@ -82,7 +87,7 @@ class FileSessionManager < BaseSessionManager
   def persist_entry(entry)
     @events << entry
 
-    File.open(session_file, 'a') do |f|
+    File.open(session_path, 'a') do |f|
       f.puts(JSON.generate(entry))
     end
   end
