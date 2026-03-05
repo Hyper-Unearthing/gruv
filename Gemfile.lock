@@ -11,18 +11,24 @@ GEM
     debug (1.11.1)
       irb (~> 1.10)
       reline (>= 0.3.8)
+    drb (2.2.3)
     erb (6.0.1)
     io-console (0.8.2)
     irb (1.16.0)
       pp (>= 0.6.0)
       rdoc (>= 4.0.0)
       reline (>= 0.4.2)
+    minitest (6.0.2)
+      drb (~> 2.0)
+      prism (~> 1.5)
     pp (0.6.3)
       prettyprint
     prettyprint (0.2.0)
+    prism (1.9.0)
     psych (5.3.1)
       date
       stringio
+    rake (13.3.1)
     rdoc (7.1.0)
       erb
       psych (>= 4.0.0)
@@ -41,6 +47,8 @@ DEPENDENCIES
   base64
   debug
   llm_gateway!
+  minitest
+  rake
   singleton
 
 BUNDLED WITH

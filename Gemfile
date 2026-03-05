@@ -6,4 +6,6 @@ gem 'singleton'
 
 group :development do
   gem 'debug'
+  gem 'minitest'
+  gem 'rake'
 end
