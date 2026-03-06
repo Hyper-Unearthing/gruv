@@ -54,10 +54,10 @@ class Formatter
       if role.to_s == 'user'
         display_user_message(contents)
       else
-
         contents.each do |content|
-          # text content came as stream
-          display_llm_activity(content) unless content[:type] == 'text'
+          # skip types that were already streamed as deltas
+          next if content[:type] == 'text' || content[:type] == 'thinking'
+          display_llm_activity(content)
         end
       end
 
@@ -84,13 +84,20 @@ class Formatter
     when 'text'
       puts hash.dig(:text)
     when 'text_delta'
+      if @last_type == 'thinking_delta'
+        puts
+      end
       print hash.dig(:text)
+      @last_type = 'text_delta'
     when 'thinking_delta'
       print "#{COLORS[:dim]}#{hash.dig(:thinking)}#{COLORS[:reset]}"
+      @last_type = 'thinking_delta'
     when 'thinking'
       thinking = hash.dig(:thinking).to_s
       puts "#{COLORS[:dim]}#{thinking}#{COLORS[:reset]}" unless thinking.empty?
+      @last_type = 'thinking'
     when 'tool_use'
+      @last_type = 'tool_use'
       puts
       puts "  #{COLORS[:cyan]}#{COLORS[:bold]}#{hash.dig(:name)}#{COLORS[:reset]}"
       hash.dig(:input).each do |key, value|
