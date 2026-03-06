@@ -60,6 +60,10 @@ class BaseSessionManager
     assemble_with_compaction(messages: latest_transcript[:messages], compaction_data: latest_transcript[:compaction_data])
   end
 
+  def total_tokens
+    message_entries.reverse.find { |entry| entry.dig(:usage, :total_tokens) }&.dig(:usage, :total_tokens).to_i
+  end
+
   private
 
   def assemble_with_compaction(messages:, compaction_data:)
@@ -102,6 +106,14 @@ class BaseSessionManager
 
   def message_entries
     raise NotImplementedError, '#message_entries must be implemented in subclasses'
+  end
+
+  def last_summary
+    raise NotImplementedError, '#last_summary must be implemented in subclasses'
+  end
+
+  def last_compaction_entry
+    raise NotImplementedError, '#last_compaction_entry must be implemented in subclasses'
   end
 
   def message_usage(message)

@@ -80,6 +80,15 @@ class FileSessionManager < BaseSessionManager
     @events.select { |event| event[:type] == 'message' }
   end
 
+  def last_summary
+    compaction_entry = @events.reverse.find { |event| event[:type] == 'compaction' }
+    compaction_entry&.dig(:data, :summary)
+  end
+
+  def last_compaction_entry
+    @events.reverse.find { |event| event[:type] == 'compaction' }
+  end
+
   def parent_id_for_new_entry
     events.length.positive? ? events.last[:id] : nil
   end

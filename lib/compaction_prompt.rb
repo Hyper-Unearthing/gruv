@@ -2,32 +2,52 @@ require 'json'
 
 class CompactionPrompt < LlmGateway::Prompt
   SYSTEM_PROMPT = <<~PROMPT.freeze
-    You are compressing prior conversation context.
+    You are summarizing a long-running conversation between a user and an assistant.
 
-    Produce a concise summary that preserves:
-    - user goals and constraints
-    - decisions that were made
-    - unfinished tasks and important open questions
-    - key file names, commands, and code-level details that matter later
+    Update the summary using the transcript.
 
-    Keep the summary factual and easy to continue from.
+    For each topic include:
+    1. Topic (top-level heading)
+    2. What the user asked
+    3. Actions you took
+    4. Next actions to take
+
+    Rules:
+    - If a topic from the previous summary continues, merge the information.
+    - If a topic from the previous summary is not continued, omit it.
+    - Keep the summary concise and structured by topic.
   PROMPT
 
-  def initialize(client, messages)
+  def initialize(client, messages, last_summary: nil)
     super(client)
     @client = client
     @messages = messages
+    @last_summary = last_summary
   end
 
   def prompt
     payload = JSON.pretty_generate(@messages)
+    summary_text = @last_summary || 'no previous summary'
+
+    prompt_text = <<~TEXT
+      Previous summary:
+      <summary>
+      #{summary_text}
+      </summary>
+
+      Current conversation transcript:
+      <transcript>
+      #{payload}
+      </transcript>
+    TEXT
+
     [
       {
         role: 'user',
         content: [
           {
             type: 'text',
-            text: "Summarize the following conversation messages:\n\n#{payload}"
+            text: prompt_text
           }
         ]
       }

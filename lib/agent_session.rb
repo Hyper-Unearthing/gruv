@@ -15,6 +15,7 @@ class AgentSession
   def run(message)
     Logging.instance.notify('agent_session.message', { input: message })
     @agent.run(message)
+    compact if @session_manager.total_tokens > 20000
   end
 
   def raw_transcript
