@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "llm_gateway"
+require_relative "../usage_normalizer"
 
 module AnthropicOAuth
   # Extends LlmGateway::Clients::ClaudeCode with reasoning_effort support.
@@ -33,12 +34,18 @@ module AnthropicOAuth
 
       body.merge!(thinking: build_thinking_config) if @reasoning_effort
 
-      if block_given?
+      result = if block_given?
         body[:stream] = true
         post_stream_with_retry("messages", body, &block)
       else
         post_with_retry("messages", body)
       end
+
+      if result.is_a?(Hash) && result[:usage]
+        result[:usage] = UsageNormalizer.normalize(result[:usage])
+      end
+
+      result
     end
 
     private

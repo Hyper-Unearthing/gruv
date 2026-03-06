@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "../usage_normalizer"
+
 module OpenAiOAuth
   # Maps OpenAI Responses API SSE stream events to the normalized format
   # used by the agent (same shape as Claude's streaming events).
@@ -163,7 +165,7 @@ module OpenAiOAuth
 
       response = data[:response] || data
       if response[:usage]
-        @usage = response[:usage]
+        @usage = UsageNormalizer.normalize(response[:usage])
       end
       @id ||= response[:id]
       @model ||= response[:model]

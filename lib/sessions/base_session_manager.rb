@@ -1,6 +1,7 @@
 require 'securerandom'
 require 'time'
 require_relative 'concerns/basic_compaction'
+require_relative '../llm_gateway_providers/usage_normalizer'
 
 class BaseSessionManager
   include BasicCompaction
@@ -104,6 +105,6 @@ class BaseSessionManager
   end
 
   def message_usage(message)
-    message[:usage]
+    UsageNormalizer.normalize(message[:usage])
   end
 end
