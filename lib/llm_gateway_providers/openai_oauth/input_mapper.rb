@@ -7,8 +7,8 @@ module OpenAiOAuth
   # Input mapper for OpenAI OAuth Responses provider.
   #
   # Codex Responses rejects assistant replay blocks of type `thinking`,
-  # `reasoning`, and `summary_text` for this endpoint/account mode.
-  # Keep transcript reasoning internally, but strip it when sending input.
+  # `reasoning`, and `summary_text` unless they are valid reasoning items.
+  # Keep transcript thinking internally and replay only `signature`.
   class InputMapper < LlmGateway::Adapters::OpenAi::Responses::InputMapper
     def self.map_messages(messages)
       return messages unless messages.is_a?(Array)
@@ -58,7 +58,8 @@ module OpenAiOAuth
         obj.map { |item| strip_reasoning_blocks(item) }.compact
       when Hash
         type = obj[:type]
-        return nil if ["thinking", "reasoning", "summary_text"].include?(type)
+        return nil if ["reasoning", "summary_text"].include?(type)
+        return nil if type == "thinking" && obj[:signature].nil?
 
         obj.each_with_object({}) do |(k, v), acc|
           normalized = strip_reasoning_blocks(v)
@@ -110,6 +111,15 @@ module OpenAiOAuth
             name: part[:name],
             arguments: arguments
           }.compact
+        when "thinking"
+          signature = part[:signature]
+          if signature
+            begin
+              items << JSON.parse(signature, symbolize_names: true)
+            rescue JSON::ParserError
+              nil
+            end
+          end
         when "text", "input_text", "output_text"
           text_parts << {
             type: "output_text",

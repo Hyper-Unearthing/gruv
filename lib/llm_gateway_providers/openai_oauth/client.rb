@@ -13,6 +13,7 @@ module OpenAiOAuth
   # adds OAuth token management on top.
   class Client < LlmGateway::Clients::OpenAi
     attr_reader :token_manager, :account_id
+    attr_accessor :prompt_cache_key
 
     def initialize(
       model_key: "gpt-5.1-codex-mini",
@@ -20,8 +21,11 @@ module OpenAiOAuth
       refresh_token: nil,
       expires_at: nil,
       account_id: nil,
-      client_id: OAuthFlow::CLIENT_ID
+      client_id: OAuthFlow::CLIENT_ID,
+      reasoning_effort: nil
     )
+      @reasoning_effort = reasoning_effort
+
       if refresh_token
         @token_manager = TokenManager.new(
           access_token: access_token,
@@ -60,9 +64,13 @@ module OpenAiOAuth
         model: model_key,
         instructions: instructions,
         input: messages,
-        store: false
+        store: false,
+        include: ["reasoning.encrypted_content"]
       }
+      body[:prompt_cache_key] = @prompt_cache_key if @prompt_cache_key
+      body[:prompt_cache_retention] = "24h" if @prompt_cache_key
       body[:tools] = tools if tools
+      body[:reasoning] = { effort: @reasoning_effort, summary: 'detailed' } if @reasoning_effort
 
       # Codex OAuth backend currently requires streaming mode.
       body[:stream] = true

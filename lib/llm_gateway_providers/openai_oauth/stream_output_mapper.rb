@@ -151,6 +151,9 @@ module OpenAiOAuth
       if item[:type] == "function_call" && @current_tool
         @current_tool[:input] = parse_json(@current_tool[:input_json])
         @current_tool = nil
+      elsif item[:type] == "reasoning"
+        thinking_block = @content.select { |b| b[:type] == "thinking" }.last
+        thinking_block[:signature] = JSON.generate(item) if thinking_block
       end
       nil
     end
@@ -160,12 +163,7 @@ module OpenAiOAuth
 
       response = data[:response] || data
       if response[:usage]
-        u = response[:usage]
-        @usage = {
-          input_tokens: u[:input_tokens] || 0,
-          output_tokens: u[:output_tokens] || 0,
-          total_tokens: u[:total_tokens] || 0
-        }
+        @usage = response[:usage]
       end
       @id ||= response[:id]
       @model ||= response[:model]
@@ -230,7 +228,7 @@ module OpenAiOAuth
             input: block[:input] || parse_json(block[:input_json])
           }
         when "thinking"
-          { type: "thinking", thinking: block[:thinking] }
+          { type: "thinking", thinking: block[:thinking], signature: block[:signature] }
         else
           block
         end
