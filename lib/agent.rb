@@ -3,12 +3,11 @@ require_relative 'eventable'
 
 class Agent
   include Eventable
-  attr_reader :model, :client
+  attr_reader :client
   attr_accessor :transcript
 
-  def initialize(prompt_class, model, client)
+  def initialize(prompt_class, client)
     @prompt_class = prompt_class
-    @model = model
     @client = client
     @transcript = []
   end
@@ -27,7 +26,7 @@ class Agent
   private
 
   def send_and_process
-    prompt = @prompt_class.new(@model, transcript, @client)
+    prompt = @prompt_class.new(transcript, @client)
     result = prompt.post do |event|
       case event[:type]
       when :text_delta, :thinking_delta

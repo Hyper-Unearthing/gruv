@@ -6,8 +6,8 @@ class Prompt < LlmGateway::Prompt
     .sort_by(&:name)
     .freeze
 
-  def initialize(model, transcript, client)
-    super(model)
+  def initialize(transcript, client)
+    super(client.client.model_key)
     @transcript = transcript
     @client = client
   end

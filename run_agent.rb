@@ -94,16 +94,10 @@ class AgentRunner
       exit 1
     end
 
-    @agent = Agent.new(Prompt, model, client)
-    agent_session = AgentSession.new @agent, FileSessionManager.new(@options[:session_file])
-
-
     if @options[:message]
-      message_mode = MessageMode.new(agent_session, @options[:message])
-      message_mode.run
+      MessageMode.new(client, @options[:session_file], @options[:message]).run
     else
-      runner = InteractiveRunner.new(agent_session)
-      runner.run
+      InteractiveRunner.new(client, @options[:session_file]).run
     end
   end
 
