@@ -1,0 +1,8 @@
+{"type":"session","id":"session_1","timestamp":"20260311_120000"}
+{"id":"msg_pre_1","parent_id":"session_1","timestamp":"2026-03-11T12:00:01+08:00","type":"message","usage":null,"data":{"role":"user","content":[{"type":"text","text":"pre user question"}]}}
+{"id":"msg_pre_2","parent_id":"msg_pre_1","timestamp":"2026-03-11T12:00:02+08:00","type":"message","usage":{"total_tokens":3},"data":{"role":"assistant","content":[{"type":"text","text":"pre assistant tool call"},{"type":"tool_use","id":"toolu_pre_1","name":"read","input":{"path":"lib/pre.rb"}}]}}
+{"id":"msg_pre_3","parent_id":"msg_pre_2","timestamp":"2026-03-11T12:00:03+08:00","type":"message","usage":null,"data":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_pre_1","content":"pre result"}]}}
+{"id":"cmp_1","parent_id":"msg_pre_3","timestamp":"2026-03-11T12:00:04+08:00","type":"compaction","usage":{"total_tokens":10},"data":{"summary":"compacted summary","first_kept_entry_id":"msg_post_1"}}
+{"id":"msg_post_1","parent_id":"cmp_1","timestamp":"2026-03-11T12:00:05+08:00","type":"message","usage":null,"data":{"role":"user","content":[{"type":"text","text":"post user question"}]}}
+{"id":"msg_post_2","parent_id":"msg_post_1","timestamp":"2026-03-11T12:00:06+08:00","type":"message","usage":{"total_tokens":4},"data":{"role":"assistant","content":[{"type":"text","text":"post assistant tool call"},{"type":"tool_use","id":"toolu_post_1","name":"bash","input":{"command":"rg StreamOutputMapper lib"}}]}}
+{"id":"msg_post_3","parent_id":"msg_post_2","timestamp":"2026-03-11T12:00:07+08:00","type":"message","usage":null,"data":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_post_1","content":"lib/llm_gateway_providers/openai_oauth/stream_output_mapper.rb"}]}}

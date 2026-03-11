@@ -9,25 +9,25 @@ class AgentSession
     @session_manager = session_manager
 
     @agent.subscribe(@session_manager)
-    @agent.transcript = compacted_transcript
+    @agent.transcript = model_input_messages
   end
 
   def run(message)
     Logging.instance.notify('agent_session.message', { input: message })
     @agent.run(message)
-    compact if @session_manager.total_tokens > 20000
+    compact if @session_manager.total_tokens > 20_000
   end
 
-  def raw_transcript
-    @session_manager.current_transcript || []
+  def raw_events
+    @session_manager.events
   end
 
   def compact
     session_manager.compaction(@agent.client)
-    @agent.transcript = compacted_transcript
+    @agent.transcript = model_input_messages
   end
 
-  def compacted_transcript
-    @session_manager.assemble_transcript
+  def model_input_messages
+    @session_manager.build_model_input_messages
   end
 end

@@ -7,29 +7,21 @@ require_relative 'concerns/basic_compaction'
 require_relative '../instance_file_scope'
 
 class FileSessionManager < BaseSessionManager
-  attr_reader :session_path
+  attr_reader :session_path, :file_name
 
   include BasicCompaction
 
   def initialize(file_name)
-    if file_name
-      @session_path = normalize_path(file_name)
-      if File.exist?(@session_path)
-        super(load_session(@session_path))
-      else
-        super(nil)
-        FileUtils.mkdir_p(File.dirname(@session_path))
-        File.open(@session_path, 'a') do |f|
-          f.puts(JSON.generate(@events.first))
-        end
-      end
-    else
-      super(nil)
-      FileUtils.mkdir_p(session_dir)
-      @session_path = File.join(session_dir, "#{session_start}_#{session_id}.jsonl")
-      File.open(@session_path, 'a') do |f|
-        f.puts(JSON.generate(@events.first))
-      end
+    super()
+    @file_name = file_name
+  end
+
+  def events
+    @events ||= begin
+      @session_path = normalize_path(file_name) if file_name
+      return load_session(@session_path) if @session_path && File.exist?(@session_path)
+
+      create_new_session
     end
   end
 
@@ -39,6 +31,22 @@ class FileSessionManager < BaseSessionManager
     else
       File.expand_path(file_name)
     end
+  end
+
+
+  private
+
+  def create_new_session
+    @session_id = SecureRandom.uuid
+    @session_start = Time.now.strftime('%Y%m%d_%H%M%S')
+
+    @session_path ||= File.join(session_dir, "#{session_start}_#{session_id}.jsonl")
+    FileUtils.mkdir_p(File.dirname(@session_path))
+    File.open(@session_path, 'a') do |f|
+      f.puts(JSON.generate([{ type: 'session', id: session_id, timestamp: session_start }]))
+    end
+
+    [new_session_event]
   end
 
   def load_session(session_path)
@@ -54,55 +62,8 @@ class FileSessionManager < BaseSessionManager
     events
   end
 
-  private
-
-  def fetch_latest_transcript
-    compaction_entry = @events.reverse.find { |event| event[:type] == 'compaction' }
-    return { messages: current_transcript, compaction_data: nil } unless compaction_entry
-
-    compaction_data = compaction_entry[:data]
-    first_kept_entry_id = compaction_data[:first_kept_entry_id]
-    return { messages: current_transcript, compaction_data: nil } unless first_kept_entry_id
-
-    first_kept_index = @events.index { |event| event[:id] == first_kept_entry_id }
-    return { messages: current_transcript, compaction_data: nil } unless first_kept_index
-
-    kept_messages = @events[first_kept_index..].to_a.filter_map do |event|
-      next unless event[:type] == 'message'
-
-      event[:data]
-    end
-
-    { messages: kept_messages, compaction_data: compaction_data }
-  end
-
-  def message_entries
-    @events.select { |event| event[:type] == 'message' }
-  end
-
-  def compaction_source_messages
-    compaction_index = @events.rindex { |event| event[:type] == 'compaction' }
-    return message_entries unless compaction_index
-
-    events_after_compaction = @events[(compaction_index + 1)..] || []
-    events_after_compaction.select { |event| event[:type] == 'message' }
-  end
-
-  def last_summary
-    compaction_entry = @events.reverse.find { |event| event[:type] == 'compaction' }
-    compaction_entry&.dig(:data, :summary)
-  end
-
-  def last_compaction_entry
-    @events.reverse.find { |event| event[:type] == 'compaction' }
-  end
-
-  def parent_id_for_new_entry
-    events.length.positive? ? events.last[:id] : nil
-  end
-
   def persist_entry(entry)
-    @events << entry
+    super(entry)
 
     File.open(session_path, 'a') do |f|
       f.puts(JSON.generate(entry))
