@@ -82,21 +82,14 @@ class CompactionPrompt < LlmGateway::Prompt
     content.map do |block|
       case block[:type]
       when 'thinking'
-        { type: 'thinking', thinking: truncate_text(block[:thinking], 600) }
+        { type: 'thinking', thinking: block[:thinking] }
       when 'text'
-        { type: 'text', text: truncate_text(block[:text], 2_000) }
+        { type: 'text', text: block[:text] }
       when 'tool_result'
-        { type: 'tool_result', tool_use_id: block[:tool_use_id], content: truncate_text(block[:content], 4_000) }
+        { type: 'tool_result', tool_use_id: block[:tool_use_id], content: block[:content] }
       else
         block
       end
     end
-  end
-
-  def truncate_text(text, max_chars)
-    return '' if text.nil?
-    return text if text.length <= max_chars
-
-    text[0, max_chars] + "\n...[truncated for compaction]"
   end
 end
