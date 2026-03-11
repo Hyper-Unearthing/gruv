@@ -6,21 +6,8 @@ require_relative '../llm_gateway_providers/usage_normalizer'
 class BaseSessionManager
   include BasicCompaction
 
-  attr_reader :session_id, :session_start, :events
+  attr_reader :session_id, :session_start
   attr_accessor :model
-
-  def initialize(events)
-    if(events)
-      session_event = events[0]
-      @session_id = session_event[:id]
-      @session_start = session_event[:timestamp]
-      @events = events
-    else
-      @session_id = SecureRandom.uuid
-      @session_start = Time.now.strftime('%Y%m%d_%H%M%S')
-      @events = [{ type: 'session', id: session_id, timestamp: session_start }]
-    end
-  end
 
   def on_notify(event)
     payload = event[:payload]
@@ -51,76 +38,67 @@ class BaseSessionManager
     persist_entry(new_entry)
   end
 
-  def current_transcript
-    message_entries.map { |event| event[:data] }
+  def active_messages
+    compaction_event = last_compaction_entry
+    messages = if compaction_event
+      compaction_index = events.index(compaction_event)
+      events[(compaction_index + 1)..].select { |event| event[:type] == 'message' }
+    else
+      message_events
+    end
+
+    messages.map { |event| event[:data] }
   end
 
-  def assemble_transcript
-    latest_transcript = fetch_latest_transcript
-    assemble_with_compaction(messages: latest_transcript[:messages], compaction_data: latest_transcript[:compaction_data])
-  end
-
-  def total_tokens
-    message_entries.reverse.find { |entry| entry.dig(:usage, :total_tokens) }&.dig(:usage, :total_tokens).to_i
-  end
-
-  private
-
-  def assemble_with_compaction(messages:, compaction_data:)
-    return messages unless compaction_data && compaction_data[:first_kept_entry_id]
+  def build_model_input_messages
+    return active_messages unless last_compaction_entry
 
     summary_message = {
       role: 'assistant',
       content: [
         {
           type: 'text',
-          text: compaction_data[:summary]
+          text: last_compaction_entry.dig(:data, :summary)
         }
       ]
     }
 
-    [summary_message, *drop_leading_non_text_messages(messages)]
+    [summary_message, *active_messages]
   end
 
-  def drop_leading_non_text_messages(messages)
-    messages.drop_while { |message| !text_only_message?(message) }
+  def total_tokens
+    message_events.reverse.find { |entry| entry.dig(:usage, :total_tokens) }&.dig(:usage, :total_tokens).to_i
   end
 
-  def text_only_message?(message)
-    return false if message[:content].empty?
-
-    message[:content].all? { |part| ['text', 'input_text', 'output_text'].include?(part[:type]) }
-  end
-
-  def fetch_latest_transcript
-    raise NotImplementedError, '#fetch_latest_transcript must be implemented in subclasses'
-  end
+  private
 
   def parent_id_for_new_entry
-    raise NotImplementedError, '#parent_id_for_new_entry must be implemented in subclasses'
+    events.length.positive? ? events.last[:id] : nil
   end
 
-  def persist_entry(_entry)
-    raise NotImplementedError, '#persist_entry must be implemented in subclasses'
-  end
-
-  def message_entries
-    raise NotImplementedError, '#message_entries must be implemented in subclasses'
-  end
-
-  def compaction_source_messages
-    message_entries
-  end
-
-  def last_summary
-    raise NotImplementedError, '#last_summary must be implemented in subclasses'
+  def message_events
+    events.select { |event| event[:type] == 'message' }
   end
 
   def last_compaction_entry
-    raise NotImplementedError, '#last_compaction_entry must be implemented in subclasses'
+    events.reverse.find { |event| event[:type] == 'compaction' }
   end
 
   def message_usage(message)
     UsageNormalizer.normalize(message[:usage])
+  end
+
+  def persist_entry(entry)
+    events << entry
+  end
+
+  def new_session_event
+    @session_id = SecureRandom.uuid
+    @session_start = Time.now.strftime('%Y%m%d_%H%M%S')
+    { type: 'session', id: session_id, timestamp: session_start }
+  end
+
+  def events
+    @events ||= [new_session_event]
   end
 end

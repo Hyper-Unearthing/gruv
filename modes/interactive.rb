@@ -74,14 +74,14 @@ class InteractiveRunner
   private
 
   def replay_transcript
-    transcript = @agent_session.raw_transcript
-    return if transcript.empty?
+    messages = @agent_session.model_input_messages
+    return if messages.empty?
 
-    transcript.each do |message|
+    messages.each do |message|
       @formatter.replay_message(message)
     end
 
-    last = transcript.last
+    last = messages.last
     last_role = if last.is_a?(Hash)
                   last[:role] || last['role']
                 end

@@ -72,8 +72,8 @@ class CompactionPrompt < LlmGateway::Prompt
   def compaction_messages
     @messages.map do |message|
       {
-        role: message[:data][:role],
-        content: normalize_content_blocks(message[:data][:content])
+        role: message[:role],
+        content: normalize_content_blocks(message[:content])
       }
     end
   end
