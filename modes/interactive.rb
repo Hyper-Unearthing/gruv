@@ -4,7 +4,7 @@ require_relative '../lib/instance_file_scope'
 require_relative '../lib/format_stream'
 require_relative '../lib/agent'
 require_relative '../lib/agent_session'
-require_relative '../lib/prompt'
+require_relative '../lib/coding_agent'
 require_relative '../lib/sessions/file_session_manager'
 
 class InteractiveRunner
@@ -78,7 +78,7 @@ class InteractiveRunner
   private
 
   def build_session(client, session_file)
-    agent = Agent.new(Prompt, client)
+    agent = CodingAgent.new(client)
     AgentSession.new(agent, FileSessionManager.new(session_file))
   end
 
