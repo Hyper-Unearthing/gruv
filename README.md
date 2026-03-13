@@ -4,8 +4,8 @@ Just an exploration of building my own agent
 # Running
 
 ```
-git clone git@github.com:Hyper-Unearthing/rubister.git
-cd rubister
+git clone git@github.com:Hyper-Unearthing/gruv.git
+cd gruv
 ```
 
 Using OpenAI plan
