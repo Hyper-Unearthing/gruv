@@ -18,6 +18,12 @@ class AgentSession
     compact if @session_manager.total_tokens > 20_000
   end
 
+  def continue
+    Logging.instance.notify('agent_session.continue', {})
+    @agent.continue
+    compact if @session_manager.total_tokens > 20000
+  end
+
   def raw_events
     @session_manager.events
   end

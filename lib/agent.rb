@@ -19,6 +19,11 @@ class Agent
     publish(:done, response)
   end
 
+  def continue
+    response = send_and_process
+    publish(:done, response)
+  end
+
   private
 
   def send_and_process
