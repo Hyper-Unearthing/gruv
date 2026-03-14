@@ -15,6 +15,7 @@ class DaemonSupervisorMode
     @model = model
     @children = {}
     @running = false
+    @reload_requested = false
   end
 
   def start
@@ -39,11 +40,17 @@ class DaemonSupervisorMode
 
     trap('INT') { request_stop('INT') }
     trap('TERM') { request_stop('TERM') }
+    trap('HUP') { request_reload }
 
     shutdown_sent = false
 
     loop do
       break if @children.empty?
+
+      if @running && @reload_requested
+        reload_daemon_worker
+        @reload_requested = false
+      end
 
       if !@running && !shutdown_sent
         force_shutdown_children
@@ -75,7 +82,7 @@ class DaemonSupervisorMode
 
   def spawn_daemon_worker
     command = [ruby_executable, run_agent_path, *provider_args, '--daemon', '--poll-interval', @poll_interval.to_s]
-    Process.spawn({ 'GRUV_ROLE' => 'daemon_worker' }, *command)
+    Process.spawn({ 'GRUV_ROLE' => 'daemon_worker', 'GRUV_SUPERVISOR_PID' => Process.pid.to_s }, *command)
   end
 
   def spawn_writer(role)
@@ -101,6 +108,75 @@ class DaemonSupervisorMode
 
     Logging.instance.notify('daemon.supervisor.stop.force_requested', { signal: signal })
     force_shutdown_children
+  end
+
+  def request_reload
+    return unless @running
+
+    @reload_requested = true
+    Logging.instance.notify('daemon.supervisor.reload.requested', {})
+  end
+
+  def reload_daemon_worker
+    old_pid = @children[:daemon_worker]
+
+    unless old_pid
+      new_pid = spawn_daemon_worker
+      @children[:daemon_worker] = new_pid
+      Logging.instance.notify('daemon.supervisor.reload.worker_started', {
+        old_pid: nil,
+        new_pid: new_pid,
+      })
+      return
+    end
+
+    Logging.instance.notify('daemon.supervisor.reload.worker_stopping', { pid: old_pid })
+
+    begin
+      Process.kill('TERM', old_pid)
+    rescue Errno::ESRCH
+      nil
+    end
+
+    deadline = Time.now + 300
+    loop do
+      break unless @children[:daemon_worker] == old_pid
+      break if Time.now >= deadline
+
+      sleep 0.1
+      waited = begin
+        Process.wait2(old_pid, Process::WNOHANG)
+      rescue Errno::ECHILD
+        nil
+      end
+      next unless waited
+
+      pid, status = waited
+      reap_child(pid, status)
+    end
+
+    if @children[:daemon_worker] == old_pid
+      begin
+        Process.kill('KILL', old_pid)
+      rescue Errno::ESRCH
+        nil
+      end
+
+      begin
+        pid, status = Process.wait2(old_pid)
+        reap_child(pid, status)
+      rescue Errno::ECHILD
+        nil
+      end
+    end
+
+    new_pid = spawn_daemon_worker
+    @children[:daemon_worker] = new_pid
+
+    Logging.instance.notify('daemon.supervisor.reload.worker_started', {
+      old_pid: old_pid,
+      new_pid: new_pid,
+    })
   end
 
   def shutdown_children(signal)
