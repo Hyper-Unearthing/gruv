@@ -13,8 +13,8 @@ require_relative 'lib/anthropic_oauth'
 require_relative 'lib/instance_file_scope'
 require_relative 'modes/interactive'
 require_relative 'modes/message'
-require_relative 'lib/sessions/file_session_manager'
-require_relative 'lib/agent_session'
+require_relative 'lib/runtime_config'
+require_relative 'modes/daemon'
 # Enable immediate output flushing for real-time streaming
 $stdout.sync = true
 
@@ -22,13 +22,16 @@ $stdout.sync = true
 # Simple runner that takes auth and message arguments
 class AgentRunner
   PROVIDERS_FILE = InstanceFileScope.path('providers.json')
+  INBOX_DB_PATH = InstanceFileScope.path('gruv.sqlite3')
 
   def initialize
     @options = {
       model: nil,
       provider: nil,
       message: nil,
-      session_file: nil
+      session_file: nil,
+      daemon: false,
+      poll_interval: 1
     }
   end
 
@@ -50,6 +53,14 @@ class AgentRunner
 
       opts.on('-s FILE', '--session FILE', 'Load an existing session file') do |file|
         @options[:session_file] = file
+      end
+
+      opts.on('-d', '--daemon', 'Run in daemon mode (process inbox messages)') do
+        @options[:daemon] = true
+      end
+
+      opts.on('--poll-interval SECONDS', Integer, 'Polling interval for daemon mode (default: 1)') do |interval|
+        @options[:poll_interval] = interval
       end
 
       opts.on('-h', '--help', 'Prints this help') do
@@ -78,6 +89,8 @@ class AgentRunner
 
     model = @options[:model] || provider_config['model_key']
 
+    RuntimeConfig.set(provider_name: name)
+
     configured_entries = providers.map do |provider_name, config|
       resolved_config = config.merge('provider' => provider_name)
       resolved_config['model_key'] = @options[:model] if @options[:model] && provider_name == name
@@ -86,6 +99,7 @@ class AgentRunner
 
     LlmGateway.reset_configuration!
     LlmGateway.configure(configured_entries)
+
     client = LlmGateway.configured_clients[name.to_sym]
 
     unless client
@@ -96,6 +110,9 @@ class AgentRunner
 
     if @options[:message]
       MessageMode.new(client, @options[:session_file], @options[:message]).run
+    elsif @options[:daemon]
+      daemon = DaemonMode.new(client, INBOX_DB_PATH, poll_interval: @options[:poll_interval])
+      daemon.start
     else
       InteractiveRunner.new(client, @options[:session_file]).run
     end
