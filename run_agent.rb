@@ -89,6 +89,8 @@ class AgentRunner
 
     model = @options[:model] || provider_config['model_key']
 
+    RuntimeConfig.set(provider_name: name)
+
     configured_entries = providers.map do |provider_name, config|
       resolved_config = config.merge('provider' => provider_name)
       resolved_config['model_key'] = @options[:model] if @options[:model] && provider_name == name
