@@ -1,5 +1,6 @@
 require 'json'
 require_relative 'eventable'
+require_relative 'logging'
 
 class Agent < LlmGateway::Prompt
   include Eventable
@@ -57,6 +58,9 @@ class Agent < LlmGateway::Prompt
   private
 
   def send_and_process
+    @turn = (@turn || 0) + 1
+    Logging.instance.notify('agent.llm_request', { turn: @turn, message_count: transcript.length })
+
     result = post do |event|
       case event[:type]
       when :text_delta, :thinking_delta
@@ -66,6 +70,11 @@ class Agent < LlmGateway::Prompt
 
     response = result[:choices][0][:content]
     usage = result[:usage]
+
+    content_types = response.map { |m| m[:type] }.uniq
+    tool_names = response.select { |m| m[:type] == 'tool_use' }.map { |m| m[:name] }
+    Logging.instance.notify('agent.llm_response', { turn: @turn, content_types:, tool_names:, usage: })
+
     publish_assistant_message(response, usage)
     tool_uses = response.select { |message| message[:type] == 'tool_use' }
 
@@ -109,14 +118,21 @@ class Agent < LlmGateway::Prompt
   end
 
   def handle_tool_use(message)
-    tool_class = self.class.find_tool(message[:name])
-    if tool_class
-      tool = tool_class.new
-      tool.execute(message[:input])
+    tool_name = message[:name]
+    tool_input = message[:input]
+    Logging.instance.notify('agent.tool_call', { turn: @turn, tool: tool_name, input: tool_input })
+
+    tool_class = self.class.find_tool(tool_name)
+    result = if tool_class
+      tool_class.new.execute(tool_input)
     else
-      "Unknown tool: #{message[:name]}"
+      "Unknown tool: #{tool_name}"
     end
+
+    Logging.instance.notify('agent.tool_result', { turn: @turn, tool: tool_name, result: result[0, 500] })
+    result
   rescue StandardError => e
+    Logging.instance.notify('agent.tool_result', { turn: @turn, tool: message[:name], error: e.message })
     "Error executing tool: #{e.message}"
   end
 

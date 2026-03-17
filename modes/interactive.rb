@@ -14,7 +14,7 @@ class InteractiveRunner
   end
 
   def run
-    log_file_writer = LogFileWriter.new(file_path: InstanceFileScope.path('interactive_logs.jsonl'))
+    log_file_writer = LogFileWriter.new(file_path: InstanceFileScope.path('interactive_logs.jsonl'), process_name: 'interactive')
     Logging.instance.attach(log_file_writer)
     @agent_session.agent.subscribe(@formatter)
 
