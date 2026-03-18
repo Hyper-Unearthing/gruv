@@ -33,20 +33,25 @@ class FileSessionManager < BaseSessionManager
     end
   end
 
-
   private
 
   def create_new_session
     @session_id = SecureRandom.uuid
     @session_start = Time.now.strftime('%Y%m%d_%H%M%S')
 
+    session_event = {
+      type: 'session',
+      id: session_id,
+      timestamp: session_start
+    }
+
     @session_path ||= File.join(session_dir, "#{session_start}_#{session_id}.jsonl")
     FileUtils.mkdir_p(File.dirname(@session_path))
     File.open(@session_path, 'a') do |f|
-      f.puts(JSON.generate([{ type: 'session', id: session_id, timestamp: session_start }]))
+      f.puts(JSON.generate(session_event))
     end
 
-    [new_session_event]
+    [session_event]
   end
 
   def load_session(session_path)
