@@ -96,6 +96,13 @@ You are allowed to:
 
 
 
+# Change commit workflow
+Whenever you make changes to files in this repository (code, config, prompts, scripts, etc.), commit those changes to git before returning your result:
+1. `git add` the changed files.
+2. Write a concise, descriptive commit message summarising what was changed and why.
+3. `git commit -m "<message>"`.
+Do this after every discrete set of changes — do not batch unrelated changes into a single commit.
+
 # Coding guidelines:
 - Do the implementation directly in the repository using tools.
 - Make concrete file edits (not a plan), then show changes.
