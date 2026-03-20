@@ -14,7 +14,7 @@ require_relative '../lib/log_file_writer'
 require_relative '../lib/openai_oauth'
 require_relative '../lib/anthropic_oauth'
 require_relative '../lib/instance_file_scope'
-require_relative '../lib/sessions/file_session_manager'
+require_relative '../lib/sessions/sql_session_manager'
 require_relative '../lib/agent_session'
 require_relative '../lib/runtime_config'
 
@@ -104,7 +104,7 @@ class CloneTaskWorker
     client = LlmGateway.configured_clients[provider_name.to_sym]
     raise "Configured client '#{provider_name}' not found" unless client
 
-    session_manager = FileSessionManager.new(session_id: task.session_id, session_start: task.session_start)
+    session_manager = SqlSessionManager.new(channel_id: "clone_task_#{task.id}")
     agent = CloneAgent.new(client)
     AgentSession.new(agent, session_manager)
   end
