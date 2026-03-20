@@ -1,5 +1,82 @@
-#!/usr/bin/env bash
+#!/usr/bin/env ruby
+# frozen_string_literal: true
 
-DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$DIR"
-exec bundle exec ruby "$DIR/run_agent.rb" "$@"
+require 'rbconfig'
+
+ROOT_DIR = File.expand_path(__dir__)
+Dir.chdir(ROOT_DIR)
+
+unless ENV['GRUV_BUNDLER_ACTIVE'] == '1'
+  exec({ 'GRUV_BUNDLER_ACTIVE' => '1' }, 'bundle', 'exec', RbConfig.ruby, __FILE__, *ARGV)
+end
+
+require_relative 'lib/instance_file_scope'
+require_relative 'lib/writer_registry'
+require_relative 'modes/daemon_supervisor'
+
+Dir.glob(File.join(ROOT_DIR, 'modes', '*_writer.rb')).sort.each do |path|
+  require path
+end
+
+INBOX_DB_PATH = InstanceFileScope.path('gruv.sqlite3')
+
+def daemon_requested?(argv)
+  argv.include?('--daemon') || argv.include?('-d')
+end
+
+def parse_daemon_options(argv)
+  options = {
+    provider: nil,
+    model: nil,
+    poll_interval: 1
+  }
+
+  i = 0
+  while i < argv.length
+    arg = argv[i]
+
+    case arg
+    when '-p', '--provider'
+      options[:provider] = argv[i + 1]
+      i += 1
+    when /\A--provider=(.+)\z/
+      options[:provider] = Regexp.last_match(1)
+    when '--model'
+      options[:model] = argv[i + 1]
+      i += 1
+    when /\A--model=(.+)\z/
+      options[:model] = Regexp.last_match(1)
+    when '--poll-interval'
+      options[:poll_interval] = argv[i + 1].to_i
+      i += 1
+    when /\A--poll-interval=(.+)\z/
+      options[:poll_interval] = Regexp.last_match(1).to_i
+    end
+
+    i += 1
+  end
+
+  options
+end
+
+if ENV['GRUV_ROLE']
+  role = ENV['GRUV_ROLE']
+  writer_mode_class = WriterRegistry.resolve(role)
+
+  if writer_mode_class
+    writer_mode_class.new(INBOX_DB_PATH).start
+    exit 0
+  end
+end
+
+if daemon_requested?(ARGV)
+  options = parse_daemon_options(ARGV)
+  DaemonSupervisorMode.new(
+    poll_interval: options[:poll_interval],
+    provider: options[:provider],
+    model: options[:model]
+  ).start
+  exit 0
+end
+
+exec RbConfig.ruby, File.join(ROOT_DIR, 'run_agent.rb'), *ARGV
