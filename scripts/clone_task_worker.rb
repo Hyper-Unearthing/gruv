@@ -118,15 +118,18 @@ class CloneTaskWorker
   end
 
   def notify_inbox(task:, success:, payload:)
+    origin = Message.find(task.origin_inbox_message_id)
+
     inbox = Inbox.new(DatabaseConfig.db_path)
     state = success ? 'completed' : 'failed'
+    prefix = "Response from clone task #{task.id}:"
     text = success ?
-      "Clone task #{task.id} completed. #{payload}" :
-      "Clone task #{task.id} failed. #{payload}"
+      "#{prefix} #{payload}" :
+      "#{prefix} Task failed — #{payload}"
 
     inbox.insert_message(
-      platform: 'clone',
-      channel_id: "origin:#{task.origin_inbox_message_id}",
+      platform: origin.platform,
+      channel_id: origin.channel_id,
       scope: 'clone_task',
       message: text,
       metadata: {
